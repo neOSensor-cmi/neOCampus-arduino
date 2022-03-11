@@ -1,21 +1,20 @@
 /**************************************************************************/
 /*! 
-    @file     SHT3x.cpp
+    @file     SCD4x.h
     @author   F. Thiebolt
 	  @license
 	
     This is part of a the neOCampus drivers library.
-    SHT3x is humidity + temperature sensor with an I2C interface
+    SCD4x is an ultrasonic CO2 sensor that features both temperature and hygro
+    on an I2C interface
     
     Remember: all transfers are 16bits wide
     
-    (c) Copyright 2020 Thiebolt.F <thiebolt@irit.fr>
-
-    @note
+    (c) Copyright 2022 Thiebolt.F <thiebolt@irit.fr>
 
 	@section  HISTORY
 
-    2020-May    - F.Thiebolt Initial release (UUID's CRC check diasbled)
+    2022-March    - F.Thiebolt Initial release
     
 */
 /**************************************************************************/
@@ -31,17 +30,17 @@
 #include "neocampus_utils.h"
 
 
-#include "SHT3x.h"
+#include "SCD4x.h"
 
 
 
 /**************************************************************************/
 /*! 
     @brief  Declare list of possible I2C addrs
-    Note: only one i2c addr !
 */
 /**************************************************************************/
-const uint8_t SHT3x::i2c_addrs[2] = { 0x44, 0x45 };
+const uint8_t SCD4x::i2c_addrs[] = { 0x69 };
+
 
 
 /**************************************************************************/
@@ -49,12 +48,12 @@ const uint8_t SHT3x::i2c_addrs[2] = { 0x44, 0x45 };
     @brief  Test if device at 'adr' is really what we think of
 */
 /**************************************************************************/
-boolean SHT3x::is_device( uint8_t a ) {
+boolean SCD4x::is_device( uint8_t a ) {
   
   // First step, parse all addresses
   boolean found = false;
-  for( uint8_t i=0; i < sizeof(SHT3x::i2c_addrs); i++ ) {
-    if( SHT3x::i2c_addrs[i] == a) {
+  for( uint8_t i=0; i < sizeof(SCD4x::i2c_addrs); i++ ) {
+    if( SCD4x::i2c_addrs[i] == a) {
       found = true;
       break;
     }
@@ -74,21 +73,22 @@ boolean SHT3x::is_device( uint8_t a ) {
     @brief  Instantiates a new class
 */
 /**************************************************************************/
-SHT3x::SHT3x( sht3xMeasureType_t kindness  ) : generic_driver() {
+SCD4x::SCD4x( scd4xMeasureType_t kindness  ) : generic_driver() {
   _i2caddr = -1;
   _measureType = kindness;
-  _resolution = SHT3X_DEFL_RESOLUTION;
 }
 
 
 /* declare kind of units */
-const char *SHT3x::_t_units = "celsius";
-const char *SHT3x::_rh_units = "%r.H.";
+const char *SCD4x::units_co2  = "ppm";
+const char *SCD4x::units_temp = "celsius";
+const char *SCD4x::units_rh   = "%r.H.";
 
 /* declare others static vars */
-unsigned long SHT3x::_lastMsRead  = 0;
-uint16_t SHT3x::_t_sensor   = (uint16_t)(-1);
-uint16_t SHT3x::_rh_sensor  = (uint16_t)(-1);
+unsigned long SCD4x::_lastMsRead  = 0;
+uint16_t SCD4x::_co2_sensor = (uint16_t)(-1);
+uint16_t SCD4x::_t_sensor   = (uint16_t)(-1);
+uint16_t SCD4x::_rh_sensor  = (uint16_t)(-1);
 
 
 /**************************************************************************/
@@ -96,17 +96,20 @@ uint16_t SHT3x::_rh_sensor  = (uint16_t)(-1);
     @brief  send back units
 */
 /**************************************************************************/
-const char * SHT3x::sensorUnits( uint8_t idx ) {
+const char * SCD4x::sensorUnits( uint8_t idx ) {
   
   switch( _measureType ) {
-    case sht3xMeasureType_t::temperature:
-      return _t_units;
+    case scd4xMeasureType_t::co2:
+      return units_co2;
       break;
-    case sht3xMeasureType_t::humidity:
-      return _rh_units;
+    case scd4xMeasureType_t::temperature:
+      return units_temp;
+      break;
+    case scd4xMeasureType_t::humidity:
+      return units_rh;
       break;
     default:
-      log_error(F("\n[SHT3x] unknown kind of measureType ?!?")); log_flush();
+      log_error(F("\n[SCD4x] unknown kind of measureType ?!?")); log_flush();
       return nullptr;
   }
 }
@@ -117,7 +120,7 @@ const char * SHT3x::sensorUnits( uint8_t idx ) {
     @brief  Setups the HW
 */
 /**************************************************************************/
-boolean SHT3x::begin( uint8_t addr=-1) {
+boolean SCD4x::begin( uint8_t addr=-1) {
   // get i2caddr
   if( (addr < (uint8_t)(I2C_ADDR_START)) or (addr > (uint8_t)(I2C_ADDR_STOP)) ) return false;
   _i2caddr = addr;
@@ -131,7 +134,6 @@ boolean SHT3x::begin( uint8_t addr=-1) {
    */
 
   // define defaults parameters
-  setResolution( _resolution );
 
   /* start lastmsg time measurement.
    * This way, we get sure to have at least a first acquisition! */
@@ -144,16 +146,17 @@ boolean SHT3x::begin( uint8_t addr=-1) {
 /*
  * Power modes: ON or powerOFF
  */
-void SHT3x::powerOFF( void )
+void SCD4x::powerOFF( void )
 {
   // device does not feature continuous integration so nothing to start or stop
 }
 
-void SHT3x::powerON( void )
+void SCD4x::powerON( void )
 {
   // device does not feature continuous integration so nothing to start or stop
 }
 
+TO BE CONTINUED
 
 /**************************************************************************/
 /*! 
